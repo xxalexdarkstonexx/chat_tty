@@ -53,3 +53,5 @@ dkms.conf
 *.txt
 *.log
 *.dat
+tcp_client2
+tcp_server2
