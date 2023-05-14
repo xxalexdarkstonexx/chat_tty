@@ -1,11 +1,17 @@
 #ifndef SERVERDBCONFIGS_C_SENTRY
 #define SERVERDBCONFIGS_C_SENTRY
 
-#include "serverDbConfigs.h"
-#include "serverCommands.h"
 #include "dateTime.h"
 #include "serverCore.h"
-#include <stdio.h>
+#include "serverCommands.h"
+#include "serverDbConfigs.h"
+#include <time.h>
+
+enum
+{
+	CUR_TIME_SIZE = 100,
+	CUR_DATE_BUF_SIZE = 100
+};
 
 extern Server* serv;
 
@@ -14,17 +20,18 @@ static int parse_configuration_file(int* records_size)
 	char config_strings[CONFIG_STRINGS_NUM][CONFIG_STRING_SIZE];
 	FILE* cfgPtr;
 	int f_closed = 0;
+	char cur_time[CUR_TIME_SIZE];
 
 	if ( !(cfgPtr = fopen(CONFIG_NAME, "r")) )
 	{
-		fprintf(stderr, "[%s] [WARN]: Unable to open file \"%s\". Creating new one..\n", getCurTimeAsString(), CONFIG_NAME);
+		fprintf(stderr, "[%s] [WARN]: Unable to open file \"%s\". Creating new one..\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), CONFIG_NAME);
 
 		if ( !(cfgPtr = fopen(CONFIG_NAME, "w")) )
 		{
-			fprintf(stderr, "[%s] [ERROR]: Unable to create \"%s\" file. Do you have permission to this?\n", getCurTimeAsString(), CONFIG_NAME);
+			fprintf(stderr, "[%s] [ERROR]: Unable to create \"%s\" file. Do you have permission to this?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), CONFIG_NAME);
 			return 3;
 		}
-		fprintf(stderr, "[%s] [INFO]: Setting all configs to default values..\n", getCurTimeAsString());
+		fprintf(stderr, "[%s] [INFO]: Setting all configs to default values..\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
 		fprintf(cfgPtr, "currentDbSize=10");
 		fclose(cfgPtr);
 		f_closed = 1;
@@ -33,7 +40,7 @@ static int parse_configuration_file(int* records_size)
 	if (f_closed)
 		if ( !(cfgPtr = fopen(CONFIG_NAME, "r")) )
 		{
-			fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(), CONFIG_NAME);
+			fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), CONFIG_NAME);
 			return 3;
 		}
 	
@@ -80,119 +87,47 @@ static int parse_configuration_file(int* records_size)
 
 	return 0;
 }
-char* getLogFilename(char* filename_buf)
+/*char* getLogFilename(char* filename_buf, unsigned int buf_size)
 {
-	const char* suffix = "log.txt";
-	char* time_tokens[5];
-	time_t current_time = time(0);
-	char* buf = ctime(&current_time);
-	int month_num;
+	if (buf_size < 100)
+		buf_size = 100;
 
-	char* istr = strtok(buf, " ");
-	int k = 0;
-	while (istr)
-	{
-		time_tokens[k] = istr;
-		k++;
-		istr = strtok(NULL, " ");
-	}
+	const char* suffix = "_log.txt";
 	
-	month_num = getMonthNumber(time_tokens[1]);
-	char* month;
-	switch (month_num)
-	{
-		case 1:
-			;month = "01";
-			break;
-		case 2:
-			;month = "02";
-			break;
-		case 3:
-			;month = "03";
-			break;
-		case 4:
-			;month = "04";
-			break;
-		case 5:
-			;month = "05";
-			break;
-		case 6:
-			;month = "06";
-			break;
-		case 7:
-			;month = "07";
-			break;
-		case 8:
-			;month = "08";
-			break;
-		case 9:
-			;month = "09";
-			break;
-		case 10:
-			;month = "10";
-			break;
-		case 11:
-			;month = "11";
-			break;
-		case 12:
-			;month = "12";
-			break;
-		default:
-			;month = "00";
-	}
+	time_t cur_time_in_secs = time(0);
+	struct tm* time = NULL;
+	time = localtime(&cur_time_in_secs);
 
+	strftime(filename_buf, buf_size, "%d_%m_%y_%H_%M_%S", time);
 
-	for ( k = 0; time_tokens[2][k]; k++ )
-		filename_buf[k] = time_tokens[2][k];
-	filename_buf[k] = '_';
-	k++;
-	int cur_pos = k;
-	
-	for ( k = 0; month[k]; k++, cur_pos++ )
-		filename_buf[cur_pos] = month[k];
-	filename_buf[cur_pos] = '_';
-	cur_pos++;
-
-	for ( k = 0; time_tokens[4][k] != '\n'; k++, cur_pos++ )
-		filename_buf[cur_pos] = time_tokens[4][k];
-	filename_buf[cur_pos] = '_';
-	cur_pos++;
-
-	for ( k = 0; time_tokens[3][k]; k++, cur_pos++ )
-	{
-		if (time_tokens[3][k] == ':')
-			filename_buf[cur_pos] = '_';
-		else
-			filename_buf[cur_pos] = time_tokens[3][k];
-	}
-	filename_buf[cur_pos] = '_';
-	cur_pos++;
-	
-	for ( k = 0; suffix[k]; k++, cur_pos++ )
-		filename_buf[cur_pos] = suffix[k];
+	int cur_pos = strlen(filename_buf);
+	int i;
+	for (i = 0; suffix[i]; i++, cur_pos++)
+		filename_buf[cur_pos] = suffix[i];
 	filename_buf[cur_pos] = '\0';
-
+	
 	return filename_buf;
-}
+}*/
 void evaluate_size_db(int* records_size)
 {
+	char cur_time[CUR_TIME_SIZE];
 	int cfg_error_code;
 	if ( (cfg_error_code = parse_configuration_file(records_size)) )
 	{
 		switch (cfg_error_code)
 		{
 			case 1:
-				printf("[%s] [ERROR]: Error has occured while attempting to parse \"%s\" file\n", getCurTimeAsString(), CONFIG_NAME);
-				printf("[%s] [ERROR]: Set default value to %d\n", getCurTimeAsString(), CONFIG_SETTING_DEFAULT_SIZE);
+				printf("[%s] [ERROR]: Error has occured while attempting to parse \"%s\" file\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), CONFIG_NAME);
+				printf("[%s] [ERROR]: Set default value to %d\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), CONFIG_SETTING_DEFAULT_SIZE);
 				*records_size = CONFIG_SETTING_DEFAULT_SIZE;
 				break;
 			case 2:
-				printf("[%s] [ERROR]: Incorrect value of \"currentDbSize\" parameter\n", getCurTimeAsString());
-				printf("[%s] [ERROR]: Set default value to %d\n", getCurTimeAsString(), CONFIG_SETTING_DEFAULT_SIZE);
+				printf("[%s] [ERROR]: Incorrect value of \"currentDbSize\" parameter\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
+				printf("[%s] [ERROR]: Set default value to %d\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), CONFIG_SETTING_DEFAULT_SIZE);
 				*records_size = CONFIG_SETTING_DEFAULT_SIZE;
 				break;
 			case 3:
-				printf("[%s] [ERROR]: You don't fave permission to create or open file in this directory!\n", getCurTimeAsString());
+				printf("[%s] [ERROR]: You don't fave permission to create or open file in this directory!\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
 				*records_size = CONFIG_SETTING_DEFAULT_SIZE;
 		}
 	}
@@ -201,13 +136,13 @@ void initUserInfoDbFile(int records_num, int extension)
 {
 	FILE* dbusers;
 	const char* empty_field = "undefined";
-	
+	char cur_time[CUR_TIME_SIZE];
 	
 	if ( !(dbusers = fopen(DB_USERINFO_NAME, "rb")) )
 	{
 		if ( !(dbusers = fopen(DB_USERINFO_NAME, "wb")) )
 		{
-			fprintf(stderr, "[%s] [ERROR]: You don't have permission to create file in this directory.\n", getCurTimeAsString());
+			fprintf(stderr, "[%s] [ERROR]: You don't have permission to create file in this directory.\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
 			return;
 		}
 		
@@ -243,7 +178,7 @@ void initUserInfoDbFile(int records_num, int extension)
 	{
 		if ( !(dbusers = fopen(DB_USERINFO_NAME, "ab")) )
 		{
-			fprintf(stderr, "[%s] [ERROR]: You don't have permission to create file in this directory.\n", getCurTimeAsString());
+			fprintf(stderr, "[%s] [ERROR]: You don't have permission to create file in this directory.\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
 			return;
 		}
 
@@ -279,12 +214,13 @@ void initExtUserInfoDbFile(int records_num, int extension)
 {
 	FILE* dbxusers;
 	const char* empty_field = "undefined";
-	
+	char cur_time[CUR_TIME_SIZE];	
+
 	if ( !(dbxusers = fopen(DB_XUSERINFO_NAME, "rb")) )
 	{
 		if ( !(dbxusers = fopen(DB_XUSERINFO_NAME, "wb")) )
 		{
-			fprintf(stderr, "[%s] [ERROR]: You don't have permission to create file in this directory.\n", getCurTimeAsString());
+			fprintf(stderr, "[%s] [ERROR]: You don't have permission to create file in this directory.\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
 			return;
 		}
 		
@@ -317,7 +253,7 @@ void initExtUserInfoDbFile(int records_num, int extension)
 	{
 		if ( !(dbxusers = fopen(DB_XUSERINFO_NAME, "ab")) )
 		{
-			fprintf(stderr, "[%s] [ERROR]: You don't have permission to create file in this directory.\n", getCurTimeAsString());
+			fprintf(stderr, "[%s] [ERROR]: You don't have permission to create file in this directory.\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
 			return;
 		}
 
@@ -353,18 +289,18 @@ void initOpsFile(int records_size)
 	char** ops_strings = NULL;
 	int stringsCount = 0;
 	unsigned int isOpsEmpty = 0;
-
+	char cur_time[CUR_TIME_SIZE];
 
 	ops_strings = parseOpsFile(&stringsCount);
 	if ( !ops_strings )
 	{
-		fprintf(stderr, "[%s] [WARN]: Unable to open \"ops.txt\"\n", getCurTimeAsString());
-		fprintf(stderr, "[%s] [WARN]: File does not exist or you don't have permission to open in this dir\n", getCurTimeAsString());
-		fprintf(stderr,	"[%s] [INFO]: Creating new file..\n", getCurTimeAsString());
+		fprintf(stderr, "[%s] [WARN]: Unable to open \"ops.txt\"\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
+		fprintf(stderr, "[%s] [WARN]: File does not exist or you don't have permission to open in this dir\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
+		fprintf(stderr,	"[%s] [INFO]: Creating new file..\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
 
 		if ( !(dbops = fopen("ops.txt", "w")) )
 		{
-			fprintf(stderr, "[%s] [ERROR]: Unable to create file \"ops.txt\". Do you have permission for this?\n", getCurTimeAsString());
+			fprintf(stderr, "[%s] [ERROR]: Unable to create file \"ops.txt\". Do you have permission for this?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
 			return;
 		}
 		isOpsEmpty = 1;
@@ -373,12 +309,12 @@ void initOpsFile(int records_size)
 	if ( !(dbusers = fopen(DB_USERINFO_NAME, "rb")) )
 	{
 		fclose(dbops);
-		fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(), DB_USERINFO_NAME);
+		fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), DB_USERINFO_NAME);
 		return;
 	}
 
-	printf("[%s] [INFO]: File \"ops.txt\" has been successfully opened\n", getCurTimeAsString());
-	printf("[%s] [INFO]: Checking property of \"ops.txt\" records..\n", getCurTimeAsString());
+	printf("[%s] [INFO]: File \"ops.txt\" has been successfully opened\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
+	printf("[%s] [INFO]: Checking property of \"ops.txt\" records..\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
 
 	
 	char** mismatched_users = NULL;
@@ -451,7 +387,7 @@ void initOpsFile(int records_size)
 						mismatched_users = NULL;
 					}
 
-					fprintf(stderr, "[%s] [ERROR]: Unable to create file \"ops.txt\". Do you have permission for this?\n", getCurTimeAsString());
+					fprintf(stderr, "[%s] [ERROR]: Unable to create file \"ops.txt\". Do you have permission for this?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
 					return;
 				}
 				
@@ -510,23 +446,24 @@ void initOpsFile(int records_size)
 	}
 	
 
-	printf("[%s] [INFO]: Done!\n", getCurTimeAsString());
+	printf("[%s] [INFO]: Done!\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
 }
 int getDBRecordIndexByName(const char* nickname)
 {
 	FILE* dbusers;
 	int records_size = 0;
 	evaluate_size_db(&records_size);
+	char cur_time[CUR_TIME_SIZE];
 
 	if ( records_size == 0 )
 	{
-		fprintf(stderr, "[%s] [ERROR]: An internal error occured in \"getDBRecordIndexByName\" while attempting to get \"record_size\" param. It's 0\n", getCurTimeAsString());
+		fprintf(stderr, "[%s] [ERROR]: An internal error occured in \"getDBRecordIndexByName\" while attempting to get \"record_size\" param. It's 0\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
 		return -2;
 	}
 	
 	if ( !(dbusers = fopen(DB_USERINFO_NAME, "rb")) )
 	{
-		fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(), DB_USERINFO_NAME);
+		fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), DB_USERINFO_NAME);
 		return -3;
 	}
 
@@ -663,12 +600,13 @@ void printDBUsers(void)
 {
 	FILE* dbusers;
 	int records_size = 0;
+	char cur_time[CUR_TIME_SIZE];
 
 	evaluate_size_db(&records_size);
 
 	if ( !(dbusers = fopen(DB_USERINFO_NAME, "rb")) )
 	{
-		fprintf(stderr, "[%s] [ERROR]: Unable to open database file \"%s\". Is it exist?\n", getCurTimeAsString(), DB_USERINFO_NAME);
+		fprintf(stderr, "[%s] [ERROR]: Unable to open database file \"%s\". Is it exist?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), DB_USERINFO_NAME);
 		return;
 	}
 
@@ -693,10 +631,11 @@ void printDBXUsers(void)
 	FILE* dbxusers;
 	int records_size = 0;
 	evaluate_size_db(&records_size);
+	char cur_time[CUR_TIME_SIZE];
 
 	if ( !(dbxusers = fopen(DB_XUSERINFO_NAME, "rb")) )
 	{
-		fprintf(stderr, "[%s] [ERROR]: Unable to open database file \"%s\". Is it exist?\n", getCurTimeAsString(), DB_XUSERINFO_NAME);
+		fprintf(stderr, "[%s] [ERROR]: Unable to open database file \"%s\". Is it exist?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), DB_XUSERINFO_NAME);
 		return;
 	}
 
@@ -719,9 +658,10 @@ void printDBXUsers(void)
 void updateDBUsersRecords(ClientSession *sess)
 {
 	FILE* dbusers;
+	char cur_time[CUR_TIME_SIZE];
 	if ( !(dbusers = fopen(DB_USERINFO_NAME, "rb")) )
 	{
-		fprintf(stderr, "[%s] [ERROR]: Unable to open database file \"%s\". Is it exist?\n", getCurTimeAsString(), DB_USERINFO_NAME);
+		fprintf(stderr, "[%s] [ERROR]: Unable to open database file \"%s\". Is it exist?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), DB_USERINFO_NAME);
 		session_send_string(sess, "*CANNOT_CONNECT_DATABASE\n");
 		sess->state = fsm_error;
 		return;
@@ -734,7 +674,7 @@ void updateDBUsersRecords(ClientSession *sess)
 
 	if ( !(dbusers = fopen(DB_USERINFO_NAME, "rb+")) )
 	{
-		fprintf(stderr, "[%s] [ERROR]: Unable to open database file \"%s\". Is it exist?\n", getCurTimeAsString(), DB_USERINFO_NAME);
+		fprintf(stderr, "[%s] [ERROR]: Unable to open database file \"%s\". Is it exist?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), DB_USERINFO_NAME);
 		session_send_string(sess, "*CANNOT_CONNECT_DATABASE\n");
 		sess->state = fsm_error;
 		return;
@@ -786,9 +726,10 @@ void updateDBUsersRecords(ClientSession *sess)
 void updateDBXUsersRecords(ClientSession *sess)
 {
 	FILE* dbxusers;
+	char cur_date[CUR_TIME_SIZE];
 	if ( !(dbxusers = fopen(DB_XUSERINFO_NAME, "rb+")) )
 	{
-		fprintf(stderr, "[%s] [ERROR]: Unable to open database file \"%s\". Is it exist?\n", getCurTimeAsString(), DB_XUSERINFO_NAME);
+		fprintf(stderr, "[%s] [ERROR]: Unable to open database file \"%s\". Is it exist?\n", getCurTimeAsString(cur_date, CUR_TIME_SIZE), DB_XUSERINFO_NAME);
 		session_send_string(sess, "*CANNOT_CONNECT_DATABASE\n");
 		sess->state = fsm_error;
 		return;
@@ -825,7 +766,7 @@ void updateDBXUsersRecords(ClientSession *sess)
 		else
 		{
 			char lastOut[100];
-			getCurDateAsString(lastOut);
+			getCurDateAsString(lastOut, CUR_DATE_BUF_SIZE);
 			int i;
 			for ( i = 0; lastOut[i]; i++ )
 				bufXUsers->lastDateOut[i] = lastOut[i];

@@ -8,7 +8,7 @@
 #define CONFIG_STRING_SIZE 80
 #define CONFIG_SETTING_DEFAULT_SIZE 10
 
-char* getLogFilename(char* filename_buf);
+/*char* getLogFilename(char* filename_buf, unsigned int buf_size);*/
 void evaluate_size_db(int* records_size);
 void initUserInfoDbFile(int records_size, int extension);
 void initExtUserInfoDbFile(int records_size, int extension);

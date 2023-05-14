@@ -1,325 +1,286 @@
 #ifndef CLIENTCORE_C_SENTRY
 #define CLIENTCORE_C_SENTRY
 
-#include "clientCore.h"
 #include "commonAPI.h"
-#include <bits/time.h>
-#include <stddef.h>
-#include <stdio.h>
+#include "clientCore.h"
 
-#define MAX_MESSAGE_LENGTH 201
-#define MAX_STRING_LENGTH 52
-
-void show_logo(void)
+enum
 {
-	const char chat_logo[1024] =  
-							"   $$$$$$$$\\  $$$$$$\\  $$$$$$$\\        $$$$$$\\  $$\\   $$\\  $$$$$$\\ $$$$$$$$\\\n"
-							"   \\__$$  __|$$  __$$\\ $$  __$$\\      $$  __$$\\ $$ |  $$ |$$  __$$\\\\__$$  __|\n"
-							"      $$ |   $$ /  \\__|$$ |  $$ |     $$ /  \\__|$$ |  $$ |$$ /  $$ |  $$ |   \n"
-							"      $$ |   $$ |      $$$$$$$  |     $$ |      $$$$$$$$ |$$$$$$$$ |  $$ |    \n"
-							"      $$ |   $$ |      $$  ____/      $$ |      $$  __$$ |$$  __$$ |  $$ |    \n"
-							"      $$ |   $$ |  $$\\ $$ |           $$ |  $$\\ $$ |  $$ |$$ |  $$ |  $$ |    \n"
-							"      $$ |   \\$$$$$$  |$$ |           \\$$$$$$  |$$ |  $$ |$$ |  $$ |  $$ |    \n"
-							"      \\__|    \\______/ \\__|            \\______/ \\__|  \\__|\\__|  \\__|  \\__|\n"
-						 ;	
-	printf("%s", chat_logo);
-}
-int get_string(char *buf, unsigned int length, unsigned int* chars_num)
+	MAX_STRING_LENGTH = 52,
+	HAS_ACCOUNT_VALUE_LENGTH = 3,
+};
+
+extern int peer_sock;
+
+static void show_logo(void)
 {
-	int ch;
-	int i = 0;
-	*chars_num = 0;
-
-	do
-	{
-		ch = getchar();
-		if ( (ch != '\n') && (ch != EOF) )
-		{
-			if (i < length)
-			{
-				buf[i] = ch;
-				i++;
-			}
-			(*chars_num)++;
-		}
-	}
-	while ( (ch != '\n') && (ch != EOF));
-
-	if (ch == EOF)
-	{
-		clear_stdin();
-		fflush(stdout);
-	}
-
-	buf[i] = '\n';
-	i++;
-	buf[i] = '\0';
-	i++;
-
-	return i;
+	printf( "%s",  
+					"   $$$$$$$$\\  $$$$$$\\  $$$$$$$\\        $$$$$$\\  $$\\   $$\\  $$$$$$\\ $$$$$$$$\\\n"
+					"   \\__$$  __|$$  __$$\\ $$  __$$\\      $$  __$$\\ $$ |  $$ |$$  __$$\\\\__$$  __|\n"
+					"      $$ |   $$ /  \\__|$$ |  $$ |     $$ /  \\__|$$ |  $$ |$$ /  $$ |  $$ |   \n"
+					"      $$ |   $$ |      $$$$$$$  |     $$ |      $$$$$$$$ |$$$$$$$$ |  $$ |    \n"
+					"      $$ |   $$ |      $$  ____/      $$ |      $$  __$$ |$$  __$$ |  $$ |    \n"
+					"      $$ |   $$ |  $$\\ $$ |           $$ |  $$\\ $$ |  $$ |$$ |  $$ |  $$ |    \n"
+					"      $$ |   \\$$$$$$  |$$ |           \\$$$$$$  |$$ |  $$ |$$ |  $$ |  $$ |    \n"
+					"      \\__|    \\______/ \\__|            \\______/ \\__|  \\__|\\__|  \\__|  \\__|\n"
+					"\n\n"
+		  );
 }
-int sendall(int s, const char* buf, int* buf_size)
-{
-	int total = 0;
-	int bytesleft = *buf_size;
-	int n;
-
-	while (total < *buf_size)
-	{
-		n = send(s, buf+total, bytesleft, 0);
-		if (n == -1) break;
-		total += n;
-		bytesleft -= n;
-	}
-	*buf_size = total;
-
-	return n == -1 ? -1 : 0;
-}
-void printHorizontalLine(unsigned int offset, unsigned int string_len, unsigned char type)
+static void printHorizontalLine(unsigned int offset, unsigned int line_length, char char_line)
 {
 	int i;
 	for (i = 1; i <= offset; i++)
-		printf("%c", ' ');
-	for (i = 1; i <= string_len; i++)
-		printf("%c", type);
+		putchar(' ');
+	for (i = 1; i <= line_length; i++)
+		putchar(char_line);
     for (i = 1; i <= offset; i++)
-		printf("%c", ' ');
+		putchar(' ');
 }
-void printTextFrame(const char* list_str[])
+static void printGreetingTextFrame(const char** text_strings, int text_strings_size)
 {
-	int i = 0;
-	int j;
-	printf("%s", "\n\n");
 	printHorizontalLine(0, 14, ' ');
 	printf("%s\n", "Welcome to authorization page of my simple TCP chat.");
 	printHorizontalLine(14, MAX_STRING_LENGTH, '#');
-	printf("%c", '\n');
-	while (list_str[i] != NULL)
+	putchar('\n');
+
+	int i = 0;
+	for (; i < text_strings_size; i++)
 	{
-		int len = strlen(list_str[i]);
+		int len = strlen(text_strings[i]);
+		
+		if ( len > MAX_STRING_LENGTH-4)
+			len = MAX_STRING_LENGTH-4;
+
 		printHorizontalLine(0, 14, ' ');
 		printHorizontalLine(0, 2, '#');
-		int new_len = (MAX_STRING_LENGTH-len-4)/2;
-		((new_len % 2) == 1) ? new_len++ : new_len; 
-		for (j = 1; j <= new_len; j++)
-			printf("%c", ' ');
-		printf("%s", list_str[i]);
-		for (j = 1; j <= (MAX_STRING_LENGTH-len-4)/2; j++)
-			printf("%c", ' ');
+		
+		int isOdd = 0;
+		int offset_len; 
+		( ((offset_len = MAX_STRING_LENGTH-4-len) % 2) != 0 ) ? isOdd = 1 : isOdd; 
+		offset_len /= 2;
+
+		printHorizontalLine(0, offset_len, ' ');
+		int j;
+		for ( j = 0; j < len; j++ )
+			putchar(text_strings[i][j]);
+		( isOdd == 1 ) ? printHorizontalLine(0, offset_len+1, ' ') : printHorizontalLine(0, offset_len, ' ') ; 
+
 		printHorizontalLine(0, 2, '#');
-		printf("%c", '\n');
-		i++;
+		putchar('\n');
 	}
+
 	printHorizontalLine(14, MAX_STRING_LENGTH, '#');
-	printf("%c", '\n');
+	putchar('\n');
 	printHorizontalLine(0, 14, ' ');
 	printf("%s", "Your answer: ");
 }
-char* getCode(void)
-{
-	const char symbols[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-	int z;
-	char* buf = malloc(5);
+static void sendAnswer(const char** box_messages, int box_messages_size, int max_read_chars)
+{	
+	char message[100];	/*it might be at least max_read_chars+2 bytes*/
+	unsigned int input_chars_num = 0;
+	int size = 0;
 
-	for (z = 0; z < 4; z++)
-		buf[z] = symbols[rand() % 62];
-	buf[z] = '\0';
 
-	return buf;
-}
-int restrictMessageLength(char* read)
-{
-	int length = strlen(read);
-	
-	if (length > MAX_MESSAGE_LENGTH)
-	{
-		read[MAX_MESSAGE_LENGTH] = '\0';
-		return MAX_MESSAGE_LENGTH;
-	}
-	return length;
-}
-void deleteExtraSpaces(char* read)
-{
-	//Delete multiple spaces from start of the message
-	///////////////////////////////////////////////////////////
-	int i = 0, c = 0;
-	while (read[i++] == ' ') c++;
-	for (i = c; i < strlen(read)+1; i++) read[i-c] = read[i];
-	///////////////////////////////////////////////////////////
-	
-	char* message_tokens[100];
-	char* istr = strtok(read, " ");
-			
-	int m = 0;
-	i = 0;
-	c = 0;
-			
-	while (istr != NULL)
-	{
-		message_tokens[i] = istr;
-		while (message_tokens[i][m++] == ' ') c++;
-		for (m = c; m < strlen(message_tokens[i])+1; m++) message_tokens[i][m-c] = message_tokens[i][m];
-		
-		i++;
-		m = 0;
-		c = 0;
-		istr = strtok(NULL, " ");	
-	}
-	int size = i;	
-				
-	int l = 0;
-	m = 0;
-	for (i = 0; i < size; i++)
-	{
-		for (m = 0; m < strlen(message_tokens[i]); m++)
-			read[l++] = message_tokens[i][m];
-		read[l++] = ' ';
-	}
-	read[l-1] = '\0';
-}
-static void sendAnswer(const char** strings, char* answer, unsigned int read_chars, int peer_sock)
-{
 	clearScreen();
 	show_logo();
-	printTextFrame(strings);
-	unsigned int chars_num = 0;
-	int size;
+	printGreetingTextFrame(box_messages, box_messages_size);
 
 	do
 	{
-		size = get_string(answer, read_chars, &chars_num);
+		size = get_string(message, max_read_chars, &input_chars_num);
 	}
-	while ( answer[0] == '\n' );
+	while ( message[0] == '\n' );
 
-	char* message = malloc(size);
-	int i;
-	for ( i = 0; i < size-1; i++ )
-		message[i] = answer[i];
-	message[i] = '\0';
 
-	if ( chars_num > read_chars )
+	if ( input_chars_num > max_read_chars )
 		clear_stdin();
 
 	sendall(peer_sock, message, &size);
 	printf("Sent %d bytes\n", size);
-
-	free(message);
 }
-int checkServerResponse(char **response_tokens, unsigned int response_tokens_size, int peer_sock, int* authorized)
+
+static int viewRecordSuccessResult(char** response_tokens, int fields_num, int debug_mode)
+{
+	char** args = malloc(sizeof(char*) * fields_num);
+	if ( !args )
+		return 0;
+
+	int i, j, k;
+	for ( i = 0, j = 3; i < fields_num; i++, j++ )
+	{
+		args[i] = malloc(sizeof(char) * strlen(response_tokens[j]) + 1 );
+		if ( !(args[i]) )
+		{
+			int m;
+			for (m = 0; m < i; m++)
+				if ( args[m] )
+					free(args[m]);
+			return 0;
+		}
+
+		for ( k = 0; response_tokens[j][k]; k++ )
+			args[i][k] = response_tokens[j][k];
+		args[i][k] = '\0';
+	}
+	printRecord(args, fields_num, debug_mode);
+	
+	for ( i = 0; i < fields_num; i++ )
+		if ( args[i] )
+			free(args[i]);
+	if ( args )
+		free(args);
+
+	return 1;
+}
+
+int checkServerResponse(char **response_tokens, unsigned int response_tokens_size, int* authorized)
 {
 	if ( strcmp(response_tokens[0], "*CLIENT_HAS_ACCOUNT") == 0 )
 	{
-		char answer[5];
-		unsigned int read_chars = 3;
-		const char* strings[] = { "Have you already have an account?", "Enter \"y\"or\"n\"", NULL };
+		int max_read_chars = HAS_ACCOUNT_VALUE_LENGTH;
+		const char* box_messages[] = { "Have you already have an account?", "Enter \"y\"or\"n\"", NULL };
 
-		sendAnswer(strings, answer, read_chars, peer_sock);
+		int box_messages_size = 0;
+		while ( box_messages[box_messages_size] )
+			box_messages_size++;
+
+		sendAnswer(box_messages, box_messages_size, max_read_chars);
 		return 1;
 	}
 	else if ( strcmp(response_tokens[0], "*LOGIN_WAIT_LOGIN") == 0 )
 	{
-		char answer[18];
-		unsigned int read_chars = 16;
-		const char* strings[] = { "Enter nickname for your account", NULL };
+		int max_read_chars = MAX_LOGIN_LENGTH;
+		const char* box_messages[] = { "Enter nickname for your account", NULL };
+		
+		int box_messages_size = 0;
+		while ( box_messages[box_messages_size] )
+			box_messages_size++;
 
-		sendAnswer(strings, answer, read_chars, peer_sock);
+		sendAnswer(box_messages, box_messages_size, max_read_chars);
 		return 1;
 	}
 	else if ( strcmp(response_tokens[0], "*LOGIN_ALREADY_AUTHORIZED") == 0 )
 	{
-		char answer[18];
-		unsigned int read_chars = 16;
-		const char* strings[] = { "This account is already authorized", "Try to use another login", NULL };
+		int max_read_chars = MAX_LOGIN_LENGTH;
+		const char* box_messages[] = { "This account is already authorized", "Try to use another login", NULL };
+		
+		int box_messages_size = 0;
+		while ( box_messages[box_messages_size] )
+			box_messages_size++;
 
-		sendAnswer(strings, answer, read_chars, peer_sock);
+		sendAnswer(box_messages, box_messages_size, max_read_chars);
 		return 1;
 	}
 	else if ( strcmp(response_tokens[0], "*LOGIN_ALREADY_USED") == 0 )
 	{
-		char answer[18];
-		unsigned int read_chars = 16;
-		const char* strings[] = {"This login is already exist in database", "Try another one",  NULL };
+		int max_read_chars = MAX_LOGIN_LENGTH;
+		const char* box_messages[] = {"This login is already exist in database", "Try another one",  NULL };
+		
+		int box_messages_size = 0;
+		while ( box_messages[box_messages_size] )
+			box_messages_size++;
 
-		sendAnswer(strings, answer, read_chars, peer_sock);
+		sendAnswer(box_messages, box_messages_size, max_read_chars);
 		return 1;
 	}
 	else if ( strcmp(response_tokens[0], "*LOGIN_INCORRECT") == 0 )
 	{
-		char answer[18];
-		unsigned int read_chars = 16;
-		const char* strings[] = {"Incorrect login!", "Please, check it and try again", NULL};
+		int max_read_chars = MAX_LOGIN_LENGTH;
+		const char* box_messages[] = {"Incorrect login!", "Please, check it and try again", NULL};
+		
+		int box_messages_size = 0;
+		while ( box_messages[box_messages_size] )
+			box_messages_size++;
 
-		sendAnswer(strings, answer, read_chars, peer_sock);
+		sendAnswer(box_messages, box_messages_size, max_read_chars);
 		return 1;
 	}
 	else if ( strcmp(response_tokens[0], "*LOGIN_NOT_EXIST") == 0 )
 	{
-		char answer[18];
-		unsigned int read_chars = 16;
-		const char* strings[] = {"This login doesn't exist", "Check your input string", NULL};
+		int max_read_chars = MAX_LOGIN_LENGTH;
+		const char* box_messages[] = {"This login doesn't exist", "Check your input string", NULL};
+		
+		int box_messages_size = 0;
+		while ( box_messages[box_messages_size] )
+			box_messages_size++;
 
-		sendAnswer(strings, answer, read_chars, peer_sock);
+		sendAnswer(box_messages, box_messages_size, max_read_chars);
 		return 1;
 	}
 	else if ( strcmp(response_tokens[0], "*SIGNUP_WAIT_LOGIN") == 0 )
 	{
-		char answer[18];
-		unsigned int read_chars = 16;
-		const char* strings[] = {"Enter nickname to create", "new account", NULL};
+		int max_read_chars = MAX_LOGIN_LENGTH;
+		const char* box_messages[] = {"Enter nickname to create", "new account", NULL};
+		
+		int box_messages_size = 0;
+		while ( box_messages[box_messages_size] )
+			box_messages_size++;
 
-		sendAnswer(strings, answer, read_chars, peer_sock);
+		sendAnswer(box_messages, box_messages_size, max_read_chars);
 		return 1;
 	}
 	else if ( strcmp(response_tokens[0], "*LOGIN_WAIT_PASS") == 0 )
 	{
-		char answer[22];
-		unsigned int read_chars = 20;
-		const char* strings[] = {"Enter password for your account", NULL};
+		int max_read_chars = MAX_PASS_LENGTH;
+		const char* box_messages[] = {"Enter password for your account", NULL};
+		
+		int box_messages_size = 0;
+		while ( box_messages[box_messages_size] )
+			box_messages_size++;
 
-		sendAnswer(strings, answer, read_chars, peer_sock);
+		sendAnswer(box_messages, box_messages_size, max_read_chars);
 		return 1;
 	}
 	else if ( strcmp(response_tokens[0], "*NEW_PASS_INCORRECT") == 0 )
 	{
-		char answer[22];
-		unsigned int read_chars = 20;
-		const char* strings[] = {"Password incorrect!", "Check it and try again", NULL};
+		int max_read_chars = MAX_PASS_LENGTH;
+		const char* box_messages[] = {"Password incorrect!", "Check it and try again", NULL};
+		
+		int box_messages_size = 0;
+		while ( box_messages[box_messages_size] )
+			box_messages_size++;
 
-		sendAnswer(strings, answer, read_chars, peer_sock);
+		sendAnswer(box_messages, box_messages_size, max_read_chars);
 		return 1;
 	}
 	else if ( strcmp(response_tokens[0], "*PASS_NOT_MATCH") == 0 )
 	{
-		char answer[22];
-		unsigned int read_chars = 20;
-		const char* strings[] = {"Password doesn't match with this account", "Try again", NULL};
+		int max_read_chars = MAX_PASS_LENGTH;
+		const char* box_messages[] = {"Password doesn't match with this account", "Try again", NULL};
+		
+		int box_messages_size = 0;
+		while ( box_messages[box_messages_size] )
+			box_messages_size++;
 
-		sendAnswer(strings, answer, read_chars, peer_sock);
+		sendAnswer(box_messages, box_messages_size, max_read_chars);
 		return 1;
 	}
 	else if ( strcmp(response_tokens[0], "*SIGNUP_WAIT_PASS") == 0 )
 	{
-		char answer[22];
-		unsigned int read_chars = 20;
-		const char* strings[] = {"Enter pass for your new account", NULL};
+		int max_read_chars = MAX_PASS_LENGTH;
+		const char* box_messages[] = {"Enter pass for your new account", NULL};
+		
+		int box_messages_size = 0;
+		while ( box_messages[box_messages_size] )
+			box_messages_size++;
 
-		sendAnswer(strings, answer, read_chars, peer_sock);
+		sendAnswer(box_messages, box_messages_size, max_read_chars);
 		return 1;
 	}
 	else if ( strcmp(response_tokens[0], "*USER_AUTHORIZED") == 0 )
 	{
+		putchar('\n');
 		int i;
-		printf("%s", "\n");
 		for ( i = 1; i <= 28; i++ )
-			printf("%c", ' ');
+			putchar(' ');
 		printf("\"%s\" joined to GLOBAL chat\n", response_tokens[1]);
 
 		return 1;
 	}
 	else if ( strcmp(response_tokens[0], "*USER_LEFT_CHAT") == 0 )
 	{
+		putchar('\n');
 		int i;
-		printf("%s", "\n");
 		for ( i = 1; i <= 28; i++ )
 			printf("%c", ' ');
 		printf("\"%s\" left GLOBAL chat\n", response_tokens[1]);
@@ -436,38 +397,13 @@ int checkServerResponse(char **response_tokens, unsigned int response_tokens_siz
 	{
 		if ( strcmp(response_tokens[1], "debug") == 0 )
 		{
-			char** args = malloc(sizeof(char*) * 17);
-			int i, j, k;
-
-			for ( i = 0, j = 3; i < 17; i++, j++ )
-			{
-				args[i] = malloc(sizeof(char) * strlen(response_tokens[j]) + 1 );
-				for ( k = 0; response_tokens[j][k]; k++ )
-					args[i][k] = response_tokens[j][k];
-				args[i][k] = '\0';
-			}
-			printDebugRecord(args, 17);
-			
-			for ( i = 0; i < 17; i++ )
-				free(args[i]);
-			free(args);
+			if ( !viewRecordSuccessResult(response_tokens, DEBUG_RECORD_FIELDS_NUM, 1) )
+				printf("%s\n", "[ERROR]: An error has occured while allocating memory to string buffers!");
 		}
 		else if ( strcmp(response_tokens[1], "record") == 0 )
 		{
-			char** args = malloc(sizeof(char*) * 7);
-			int i, j, k;
-			for ( i = 0, j = 3; i < 7; i++, j++)
-			{
-				args[i] = malloc(sizeof(char) * strlen(response_tokens[j]) + 1);
-				for ( k = 0; response_tokens[j][k]; k++ )
-					args[i][k] = response_tokens[j][k];
-				args[i][k] = '\0';
-			}
-			printUserRecord(args, 7);
-
-			for ( i = 0; i < 7; i++ )
-				free(args[i]);
-			free(args);
+			if ( !viewRecordSuccessResult(response_tokens, USER_RECORD_FIELDS_NUM, 0) )
+				printf("%s\n", "[ERROR]: An error has occured while allocating memory to string buffers!");
 		}
 
 		return 1;
@@ -507,18 +443,27 @@ int checkServerResponse(char **response_tokens, unsigned int response_tokens_siz
 		if ( strcmp(response_tokens[1], "SENDER") == 0 )
 		{
 			printf("User \"%s\" has been kicked from the chat.\n", response_tokens[2]);
-			return 1;
 		}
-		if ( strcmp(response_tokens[1], "VICTIM") == 0 )
+		else if ( strcmp(response_tokens[1], "VICTIM") == 0 )
 		{
 			clearScreen();
 			printf("%s\n", "You have been kicked from the chat.");
-			return 1;
 		}
 		return 1;
 	}
 	else if ( strcmp(response_tokens[0], "*TABLE_COMMAND_SUCCESS") == 0 )
 	{
+		/*
+		int z;
+		printf("%s\n", "DEBUG----------------------------------------DEBUG");
+		for (z = 0; z < response_tokens_size; z++)
+		{
+			printf("\t\t%s\n", response_tokens[z]);
+		}
+		printf("%s\n", "DEBUG----------------------------------------DEBUG");
+		*/
+
+
 		if ( strcmp(response_tokens[1], "LIST") == 0 )
 		{
 			printf("%s\n", "List of available tables:");
@@ -532,18 +477,24 @@ int checkServerResponse(char **response_tokens, unsigned int response_tokens_siz
 		if ( strcmp(response_tokens[1], "DATA") == 0 )
 		{
 			int non_empty_records_size = atoi(response_tokens[3]);
-			
+			int offset = 0;
+			int iterations = 0;
+
 			if ( strcmp(response_tokens[4], "USERINFO") == 0 )
 			{
-				printf("\n%s\n", "File \"usersdata.dat\":");
-				printf("%s\n", "------------------------------------------------------");
-				printf("| %-4s | %-16s | %-20s | %-1s |\n", "ID", "Username", "Password", "R");
-				printf("%s\n", "------------------------------------------------------");
+				printf(
+					   "\n%s\n"
+					   "%s\n"
+					   "| %-4s | %-16s | %-20s | %-1s |\n"
+					   "%s\n",
+					   "File \"usersdata.dat\":",
+					   "------------------------------------------------------",
+					   "ID", "Username", "Password", "R",
+					   "------------------------------------------------------"
+					  );
 				
 				int i;
-				int offset = 0;
-				int iterations = 0;
-				for ( i = 5; i < (5*non_empty_records_size+1); i++ )
+			    for ( i = 5; i < (5*non_empty_records_size+4); i++ )
 				{
 					if ( i == (5 + offset) )
 					{
@@ -572,14 +523,18 @@ int checkServerResponse(char **response_tokens, unsigned int response_tokens_siz
 			}
 			else if ( strcmp(response_tokens[4], "XUSERINFO") == 0 )
 			{
-				printf("\n%s\n", "File \"users_sessions_info.dat\":");
-				printf("%s\n", "------------------------------------------------------------------------------------------------------------------------");
-				printf("| %-4s | %-25s | %-25s | %-25s | %-25s |\n", "ID", "Reg. Date", "Last In Date", "Last Out Date", "Last IP");
-				printf("%s\n", "------------------------------------------------------------------------------------------------------------------------");
-				
+				printf(
+						"\n%s\n" 
+					    "%s\n"
+						"| %-4s | %-25s | %-25s | %-25s | %-25s |\n"
+						"%s\n",
+						"File \"users_sessions_info.dat\":",
+						"------------------------------------------------------------------------------------------------------------------------",
+						"ID", "Reg. Date", "Last In Date", "Last Out Date", "Last IP",
+						"------------------------------------------------------------------------------------------------------------------------"
+					  );
+
 				int i;
-				int offset = 0;
-				int iterations = 0;
 				for ( i = 5; i < (5*non_empty_records_size+5); i++ )
 				{
 					if ( i == (5 + offset) )
@@ -619,18 +574,18 @@ int checkServerResponse(char **response_tokens, unsigned int response_tokens_siz
 	else if ( strcmp(response_tokens[0], "*COMMAND_INVALID_PARAMS") == 0 )
 	{	
 		if ( 
-			 (strcmp(response_tokens[1], "CHGPWD") == 0) ||
-			 (strcmp(response_tokens[1], "KICK") == 0) || 
-			 (strcmp(response_tokens[1], "MUTE") == 0) || 
-			 (strcmp(response_tokens[1], "UNMUTE") == 0) || 
-			 (strcmp(response_tokens[1], "PM") == 0) || 
-			 (strcmp(response_tokens[1], "DEOP") == 0) ||
-			 (strcmp(response_tokens[1], "OP") == 0) ||
-			 (strcmp(response_tokens[1], "RECORD") == 0) ||
-			 (strcmp(response_tokens[1], "STATUS") == 0) ||
-			 (strcmp(response_tokens[1], "TABLE") == 0) ||
-			 (strcmp(response_tokens[1], "BAN") == 0) ||
-			 (strcmp(response_tokens[1], "UNBAN") == 0)
+			 (strcmp(response_tokens[1], "CHGPWD") == 0)	||
+			 (strcmp(response_tokens[1], "KICK")   == 0)	|| 
+			 (strcmp(response_tokens[1], "MUTE")   == 0)	|| 
+			 (strcmp(response_tokens[1], "UNMUTE") == 0)	|| 
+			 (strcmp(response_tokens[1], "PM")     == 0)	|| 
+			 (strcmp(response_tokens[1], "DEOP")   == 0)	||
+			 (strcmp(response_tokens[1], "OP")     == 0)	||
+			 (strcmp(response_tokens[1], "RECORD") == 0)	||
+			 (strcmp(response_tokens[1], "STATUS") == 0)	||
+			 (strcmp(response_tokens[1], "TABLE")  == 0)	||
+			 (strcmp(response_tokens[1], "BAN")    == 0)	||
+			 (strcmp(response_tokens[1], "UNBAN")  == 0)
 		   ) 
 		{
 			printf("%s", "Incorrect command usage. ");
@@ -715,26 +670,4 @@ int checkServerResponse(char **response_tokens, unsigned int response_tokens_siz
 
 	return 0;
 }
-#ifdef _WIN32
-int inet_ws_aton(const char* cp, struct in_addr* inp)
-{
-	if (cp == 0 || inp == 0)
-		return 0;
-	unsigned long addr = inet_addr(cp);
-	if (addr == INADDR_NONE || addr == INADDR_ANY)
-		return 0;
-
-	inp->s_addr = addr;
-	return 1;
-}
-#else
-unsigned long long get_tick_unix(void)
-{
-	struct timespec cur_time;
-	clock_gettime(CLOCK_REALTIME, &cur_time);
-
-	return (cur_time.tv_sec*1000 + cur_time.tv_nsec/1000000);
-}
-#endif
-
 #endif

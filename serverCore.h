@@ -81,6 +81,7 @@ typedef struct
 	char registrationDate[50];
 } DBXUsersInformation;
 
+int isValidAuthString(const char *user_auth_str, int authentication);
 void session_send_string(ClientSession *sess, const char *str); 
 int server_init(unsigned int port);
 void server_close_session(int sock_num);

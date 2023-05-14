@@ -1,15 +1,18 @@
 #ifndef SERVERCOMMANDS_C_SENTRY
 #define SERVERCOMMANDS_C_SENTRY
+
 #include "ListString.h"
 #include "commonAPI.h"
-#include "serverCore.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include "serverCommands.h"
 #include "dateTime.h"
+#include "serverCore.h"
+#include "serverCommands.h"
 #include "serverDbConfigs.h"
-#include "miscFuncs.h"
 
+
+enum
+{
+		CUR_TIME_SIZE = 100
+};
 
 extern ListString clients_online;
 extern Server* serv;
@@ -55,7 +58,7 @@ void command_overlimit_length_handler(ClientSession *sess)
 	char buf[100] = "*CMD_ARG_OVERLIMIT_LENGTH|";
 	char max_length_arg_str[3];
 
-	itoa(CMD_ARGS_MAX_LENGTH, max_length_arg_str);
+	itoa(CMD_ARGS_MAX_LENGTH, max_length_arg_str, 3);
 	int i, j;
 	for (i = 0; buf[i]; i++) {}
 	int k = 0;
@@ -69,6 +72,7 @@ void command_overlimit_length_handler(ClientSession *sess)
 }
 void help_command_handler(ClientSession *sess, char **cmd_args, unsigned int args_num)
 {
+	char cur_time[CUR_TIME_SIZE];
 	char send_buf[BUFSIZE];
 	const char* user_cmd_list[] = {
 										"/help - list all valid commands",
@@ -116,7 +120,7 @@ void help_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 	
 	if ( !clear_cmd_args(cmd_args, args_num) )
 	{
-		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"help_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"help_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 		cmd_args = NULL;
 	}
 
@@ -144,11 +148,12 @@ void help_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 void whoih_command_handler(ClientSession *sess, char **cmd_args, unsigned int args_num)
 {
 	char send_buf[BUFSIZE];
+	char cur_time[CUR_TIME_SIZE];
 	ListString clients_list = clients_online;
 	
 	if ( !clear_cmd_args(cmd_args, args_num) )
 	{
-		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"whoih_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"whoih_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 		cmd_args = NULL;	
 	}
 
@@ -196,14 +201,14 @@ void whoih_command_handler(ClientSession *sess, char **cmd_args, unsigned int ar
 void chgpass_command_handler(ClientSession *sess, char **cmd_args, unsigned int args_num)
 {
 	char bufferPass[100];
-
+	char cur_time[CUR_TIME_SIZE];
 
 	if ( args_num != 2 )
 	{
 		session_send_string(sess, "*COMMAND_INVALID_PARAMS|CHGPWD|TOO_MUCH_ARGS\n");
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"chgpass_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"chgpass_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -216,11 +221,11 @@ void chgpass_command_handler(ClientSession *sess, char **cmd_args, unsigned int 
 
 	if ( !clear_cmd_args(cmd_args, args_num) )
 	{
-		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"chgpass_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"chgpass_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 		cmd_args = NULL;	
 	}
 
-	if ( isCorrectPass(bufferPass) )
+	if ( isValidAuthString(bufferPass, 1) )
 	{
 		int i;
 		for (i = 0; bufferPass[i]; i++)
@@ -291,13 +296,15 @@ void op_command_handler(ClientSession *sess, char **cmd_args, unsigned int args_
 	int index = -1;
 	int isOnline = 0;
 	char bufferUsername[100];
+	char cur_time[CUR_TIME_SIZE];
+
 
 	if ( args_num != 2 )
 	{
 		session_send_string(sess, "*COMMAND_INVALID_PARAMS|OP|TOO_MUCH_ARGS\n");
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"op_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"op_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -310,13 +317,13 @@ void op_command_handler(ClientSession *sess, char **cmd_args, unsigned int args_
 
 	if ( !clear_cmd_args(cmd_args, args_num) )
 	{
-		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"op_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"op_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 		cmd_args = NULL;
 	}
 
 	if ( !(dbusers = fopen(DB_USERINFO_NAME, "rb")) )
 	{
-		fprintf(stderr, "[%s] [WARN]: Can not open database file \"%s\".Is it exist?\n", getCurTimeAsString(), DB_USERINFO_NAME);
+		fprintf(stderr, "[%s] [WARN]: Can not open database file \"%s\".Is it exist?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), DB_USERINFO_NAME);
 		session_send_string(sess, "*CANNOT_CONNECT_DATABASE\n");
 		return;
 	}
@@ -402,7 +409,7 @@ void op_command_handler(ClientSession *sess, char **cmd_args, unsigned int args_
 
 	if ( !(dbops = fopen("ops.txt", "w")) )
 	{
-		fprintf(stderr, "[%s] [WARN]: You don't have permission to rewrite \"ops.txt\" file\n", getCurTimeAsString());
+		fprintf(stderr, "[%s] [WARN]: You don't have permission to rewrite \"ops.txt\" file\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
 		sess->state = fsm_error;
 		session_send_string(sess, "*NO_PERM_TO_CREATE_FILE\n");
 
@@ -449,13 +456,14 @@ void deop_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 	int index = -1;
 	ClientSession* buf_sess = NULL;
 	char bufferUsername[100];
+	char cur_time[CUR_TIME_SIZE];
 
 	if (args_num != 2)
 	{
 		session_send_string(sess, "*COMMAND_INVALID_PARAMS|DEOP|TOO_MUCH_ARGS\n");
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"deop_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"deop_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -468,13 +476,13 @@ void deop_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 
 	if ( !clear_cmd_args(cmd_args, args_num) )
 	{
-		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"deop_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"deop_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 		cmd_args = NULL;	
 	}
 
 	if ( !(dbusers = fopen(DB_USERINFO_NAME, "rb")) )
 	{
-		fprintf(stderr, "[%s] [WARN]: Can not open database file \"%s\".Is it exist?\n", getCurTimeAsString(), DB_USERINFO_NAME);
+		fprintf(stderr, "[%s] [WARN]: Can not open database file \"%s\".Is it exist?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), DB_USERINFO_NAME);
 		session_send_string(sess, "*CANNOT_CONNECT_DATABASE\n");
 		return;
 	}
@@ -531,7 +539,7 @@ void deop_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 						fclose(dbusers);
 						free(buf_sess);
 						free(rbuf);
-						fprintf(stderr, "[%s] [WARN]: Can not open database file \"%s\".Is it exist?\n", getCurTimeAsString(), DB_XUSERINFO_NAME);
+						fprintf(stderr, "[%s] [WARN]: Can not open database file \"%s\".Is it exist?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), DB_XUSERINFO_NAME);
 						session_send_string(sess, "*CANNOT_CONNECT_DATABASE\n");
 						return;
 					}
@@ -575,7 +583,7 @@ void deop_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 
 	if ( !(dbops = fopen("ops.txt", "w")) )
 	{
-		fprintf(stderr, "[%s] [WARN]: You don't have permission to rewrite \"ops.txt\" file\n", getCurTimeAsString());
+		fprintf(stderr, "[%s] [WARN]: You don't have permission to rewrite \"ops.txt\" file\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
 		sess->state = fsm_error;
 		session_send_string(sess, "*NO_PERM_TO_CREATE_FILE\n");
 
@@ -656,6 +664,7 @@ void pm_command_handler(ClientSession *sess, char **cmd_args, unsigned int args_
 	int userOffline = 1;
 	char bufferUsername[100];
 	char bufferMessage[BUFSIZE];
+	char cur_time[CUR_TIME_SIZE];
 
 	if ( args_num != 3 )
 	{
@@ -664,7 +673,7 @@ void pm_command_handler(ClientSession *sess, char **cmd_args, unsigned int args_
 		{
 			if ( !clear_cmd_args(cmd_args, args_num) )
 			{
-				fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"pm_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+				fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"pm_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 				cmd_args = NULL;
 			}
 		}
@@ -682,7 +691,7 @@ void pm_command_handler(ClientSession *sess, char **cmd_args, unsigned int args_
 
 	if ( !clear_cmd_args(cmd_args, args_num) )
 	{
-		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"pm_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"pm_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 		cmd_args = NULL;
 	}
 
@@ -731,14 +740,14 @@ void status_command_handler(ClientSession *sess, char **cmd_args, unsigned int a
 	const char* success = "*STATUS_COMMAND_SUCCESS|";
 	char bufferMessage[BUFSIZE];
 	char bufferStatus[100];
-
+	char cur_time[CUR_TIME_SIZE];
 
 	if (args_num > 2)
 	{
 		session_send_string(sess, "*COMMAND_INVALID_PARAMS|STATUS|TOO_MUCH_ARGS\n");
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"status_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"status_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -866,7 +875,7 @@ void status_command_handler(ClientSession *sess, char **cmd_args, unsigned int a
 
 	if ( !clear_cmd_args(cmd_args, args_num) )
 	{
-		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"status_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"status_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 		cmd_args = NULL;
 	}
 }
@@ -882,14 +891,14 @@ static ResponseRecord* userShowRecord(const char* registered_username, int show_
 	FILE* dbusers;
 	FILE* dbxusers;
 	ResponseRecord* response_struct = NULL;
-	
+	char cur_time[CUR_TIME_SIZE];
 
 	int records_size = 0;
 	evaluate_size_db(&records_size);
 
 	if ( !(dbusers = fopen(DB_USERINFO_NAME, "rb")) )
 	{
-		fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(), DB_USERINFO_NAME);
+		fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), DB_USERINFO_NAME);
 		return NULL;
 	}
 
@@ -944,7 +953,7 @@ static ResponseRecord* userShowRecord(const char* registered_username, int show_
 					bufferRank[j] = '\0';
 			}
 			
-			itoa(buf->age, bufferAge);
+			itoa(buf->age, bufferAge, 4);
 			
 			j = 0;
 			bufferRealname[j] = '\"';
@@ -999,7 +1008,7 @@ static ResponseRecord* userShowRecord(const char* registered_username, int show_
 	
 	if ( !(dbxusers = fopen(DB_XUSERINFO_NAME, "rb")) )
 	{
-		fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(), DB_XUSERINFO_NAME);
+		fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), DB_XUSERINFO_NAME);
 		return NULL;
 	}
 	
@@ -1055,7 +1064,7 @@ static ResponseRecord* userShowRecord(const char* registered_username, int show_
 
 	if (show_record_flag)
 	{
-		char** args = malloc(sizeof(char*) * 7);
+		char** args = malloc(sizeof(char*) * USER_RECORD_FIELDS_NUM);
 		args[0] = bufferUsername;
 		args[1] = bufferStatus;
 		args[2] = bufferRank;
@@ -1064,7 +1073,7 @@ static ResponseRecord* userShowRecord(const char* registered_username, int show_
 		args[5] = bufferRegDate;
 		args[6] = bufferQuote;
 
-		printUserRecord(args, 7);
+		printRecord(args, USER_RECORD_FIELDS_NUM, 0);
 		free(args);
 	}
 
@@ -1115,19 +1124,19 @@ static char* debugShowRecord(ClientSession* sess, const char* registered_usernam
 		char bufMuteTimeLeft[10];
 		char bufStartMuteTime[30];
 		
-		itoa(serv->sess_array[(*index)]->ID, bufID);
-		itoa(serv->sess_array[(*index)]->authorized, bufAuth);
-		itoa(serv->sess_array[(*index)]->buf_used, bufUsed);
-		itoa(serv->sess_array[(*index)]->rank, bufRank);
-		itoa(serv->sess_array[(*index)]->sockfd, bufSock);
-		itoa(serv->sess_array[(*index)]->state, bufState);
-		itoa(serv->sess_array[(*index)]->user_status, bufStatus);
-		itoa(serv->sess_array[(*index)]->muted, bufMuted);
-		itoa(serv->sess_array[(*index)]->mute_time, bufMuteTime);
-		itoa(serv->sess_array[(*index)]->mute_time_left, bufMuteTimeLeft);
-		itoa(serv->sess_array[(*index)]->start_mute_time, bufStartMuteTime);
+		itoa(serv->sess_array[(*index)]->ID, bufID, 10);
+		itoa(serv->sess_array[(*index)]->authorized, bufAuth, 2);
+		itoa(serv->sess_array[(*index)]->buf_used, bufUsed, 10);
+		itoa(serv->sess_array[(*index)]->rank, bufRank, 10);
+		itoa(serv->sess_array[(*index)]->sockfd, bufSock, 10);
+		itoa(serv->sess_array[(*index)]->state, bufState, 10);
+		itoa(serv->sess_array[(*index)]->user_status, bufStatus, 10);
+		itoa(serv->sess_array[(*index)]->muted, bufMuted, 2);
+		itoa(serv->sess_array[(*index)]->mute_time, bufMuteTime, 10);
+		itoa(serv->sess_array[(*index)]->mute_time_left, bufMuteTimeLeft, 10);
+		itoa(serv->sess_array[(*index)]->start_mute_time, bufStartMuteTime, 30);
 
-		char** args = malloc(sizeof(char*) * 17);
+		char** args = malloc(sizeof(char*) * DEBUG_RECORD_FIELDS_NUM);
 		args[0] = bufferNick;
 		args[1] = bufID;
 		args[2] = bufAuth;
@@ -1146,7 +1155,7 @@ static char* debugShowRecord(ClientSession* sess, const char* registered_usernam
 		args[15] = bufMuteTimeLeft;
 		args[16] = bufStartMuteTime;
 
-		printUserRecord(args, 17);
+		printRecord(args, DEBUG_RECORD_FIELDS_NUM, 1);
 		free(args);
 	}
 
@@ -1234,21 +1243,21 @@ static void send_record_response(ClientSession* sess, const char* username, cons
 		free(str_buf);
 
 		char bufID[10];
-		itoa(serv->sess_array[index]->ID, bufID);
+		itoa(serv->sess_array[index]->ID, bufID, 10);
 		for (i = 0; bufID[i]; i++, cur_pos++)
 			success_string[cur_pos] = bufID[i];
 		success_string[cur_pos] = '|';
 		cur_pos++;
 		
 		char bufAuth[2];
-		itoa(serv->sess_array[index]->authorized, bufAuth);
+		itoa(serv->sess_array[index]->authorized, bufAuth, 2);
 		for (i = 0; bufAuth[i]; i++, cur_pos++)
 			success_string[cur_pos] = bufAuth[i];
 		success_string[cur_pos] = '|';
 		cur_pos++;
 
 		char bufUsed[10];
-		itoa(serv->sess_array[index]->buf_used, bufUsed);
+		itoa(serv->sess_array[index]->buf_used, bufUsed, 10);
 		for (i = 0; bufUsed[i]; i++, cur_pos++)
 			success_string[cur_pos] = bufUsed[i];
 		success_string[cur_pos] = '|';
@@ -1280,28 +1289,28 @@ static void send_record_response(ClientSession* sess, const char* username, cons
 		cur_pos++;
 		
 		char bufRank[10];
-		itoa(serv->sess_array[index]->rank, bufRank);
+		itoa(serv->sess_array[index]->rank, bufRank, 10);
 		for (i = 0; bufRank[i]; i++, cur_pos++)
 			success_string[cur_pos] = bufRank[i];
 		success_string[cur_pos] = '|';
 		cur_pos++;
 
 		char bufSock[10];
-		itoa(serv->sess_array[index]->sockfd, bufSock);
+		itoa(serv->sess_array[index]->sockfd, bufSock, 10);
 		for (i = 0; bufSock[i]; i++, cur_pos++)
 			success_string[cur_pos] = bufSock[i];
 		success_string[cur_pos] = '|';
 		cur_pos++;
 
 		char bufState[10];
-		itoa(serv->sess_array[index]->state, bufState);
+		itoa(serv->sess_array[index]->state, bufState, 10);
 		for (i = 0; bufState[i]; i++, cur_pos++)
 			success_string[cur_pos] = bufState[i];
 		success_string[cur_pos] = '|';
 		cur_pos++;
 		
 		char bufStatus[10];
-		itoa(serv->sess_array[index]->user_status, bufStatus);
+		itoa(serv->sess_array[index]->user_status, bufStatus, 10);
 		for (i = 0; bufStatus[i]; i++, cur_pos++)
 			success_string[cur_pos] = bufStatus[i];
 		success_string[cur_pos] = '|';
@@ -1311,28 +1320,28 @@ static void send_record_response(ClientSession* sess, const char* username, cons
 		updateDBXUsersRecords(serv->sess_array[index]);
 
 		char bufMuted[2];
-		itoa(serv->sess_array[index]->muted, bufMuted);
+		itoa(serv->sess_array[index]->muted, bufMuted, 2);
 		for (i = 0; bufMuted[i]; i++, cur_pos++)
 			success_string[cur_pos] = bufMuted[i];
 		success_string[cur_pos] = '|';
 		cur_pos++;
 		
 		char bufMuteTime[10];
-		itoa(serv->sess_array[index]->mute_time, bufMuteTime);
+		itoa(serv->sess_array[index]->mute_time, bufMuteTime, 10);
 		for (i = 0; bufMuteTime[i]; i++, cur_pos++)
 			success_string[cur_pos] = bufMuteTime[i];
 		success_string[cur_pos] = '|';
 		cur_pos++;
 
 		char bufMuteTimeLeft[10];
-		itoa(serv->sess_array[index]->mute_time_left, bufMuteTimeLeft);
+		itoa(serv->sess_array[index]->mute_time_left, bufMuteTimeLeft, 10);
 		for (i = 0; bufMuteTimeLeft[i]; i++, cur_pos++)
 			success_string[cur_pos] = bufMuteTimeLeft[i];
 		success_string[cur_pos] = '|';
 		cur_pos++;
 
 		char bufStartMuteTime[30];
-		itoa(serv->sess_array[index]->start_mute_time, bufStartMuteTime);
+		itoa(serv->sess_array[index]->start_mute_time, bufStartMuteTime, 30);
 		for (i = 0; bufStartMuteTime[i]; i++, cur_pos++)
 			success_string[cur_pos] = bufStartMuteTime[i];
 		success_string[cur_pos] = '\n';
@@ -1347,14 +1356,14 @@ void record_command_handler(ClientSession *sess, char **cmd_args, unsigned int a
 	FILE* dbusers;
 	char bufferParam[100];
 	char bufferParamValue[100];
-
+	char cur_time[CUR_TIME_SIZE];
 
 	if ( args_num > 3 )
 	{	
 		session_send_string(sess, "*COMMAND_INVALID_PARAMS|RECORD|TOO_MUCH_ARGS\n");
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"record_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"record_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -1377,7 +1386,7 @@ void record_command_handler(ClientSession *sess, char **cmd_args, unsigned int a
 	
 	if ( !clear_cmd_args(cmd_args, args_num) )
 	{
-		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"record_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"record_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 		cmd_args = NULL;
 	}
 
@@ -1393,7 +1402,7 @@ void record_command_handler(ClientSession *sess, char **cmd_args, unsigned int a
 	{
 		if ( !(dbusers = fopen(DB_USERINFO_NAME, "rb")) )
 		{
-			fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(), DB_USERINFO_NAME);
+			fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), DB_USERINFO_NAME);
 			return;
 		}
 		
@@ -1402,7 +1411,7 @@ void record_command_handler(ClientSession *sess, char **cmd_args, unsigned int a
 		{
 			if ( !(dbusers = fopen(DB_USERINFO_NAME, "rb")) )
 			{
-				fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(), DB_USERINFO_NAME);
+				fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), DB_USERINFO_NAME);
 				return;
 			}
 			DBUsersInformation* buf = malloc(sizeof(DBUsersInformation));
@@ -1458,7 +1467,7 @@ void record_command_handler(ClientSession *sess, char **cmd_args, unsigned int a
 				
 				if ( !(dbusers = fopen(DB_USERINFO_NAME, "rb")) )
 				{
-					fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(), DB_USERINFO_NAME);
+					fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), DB_USERINFO_NAME);
 					break;
 				}
 
@@ -1541,7 +1550,7 @@ void record_command_handler(ClientSession *sess, char **cmd_args, unsigned int a
 
 				if ( !(dbusers = fopen(DB_USERINFO_NAME, "rb+")) )
 				{
-					fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(), DB_USERINFO_NAME);
+					fprintf(stderr, "[%s] [ERROR]: Unable to open file \"%s\". Is it exist?\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), DB_USERINFO_NAME);
 					session_send_string(sess, "*CANNOT_CONNECT_DATABASE\n");
 					free(rbuf);
 					break;
@@ -1597,7 +1606,7 @@ char* make_response_to_victim(char* im_buf, const char* extra)
 		return NULL;
 
 	char mt[30];
-	itoa(serv->sess_array[j]->mute_time_left, mt);
+	itoa(serv->sess_array[j]->mute_time_left, mt, 30);
 	
 	int i;
 	if ( im_buf != NULL )
@@ -1669,7 +1678,7 @@ void mute_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 {
 	ListString users_list = clients_online;
 	FILE* dbxusers;
-
+	char cur_time[CUR_TIME_SIZE];
 
 	if ( args_num != 3 )
 	{	
@@ -1677,7 +1686,7 @@ void mute_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 		
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -1689,13 +1698,13 @@ void mute_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 		username_buf[i] = cmd_args[1][i];
 	username_buf[i] = '\0';
 
-	if ( !isCorrectLogin(username_buf) )
+	if ( !isValidAuthString(username_buf, 0) )
 	{
 		session_send_string(sess, "*COMMAND_INVALID_PARAMS|MUTE|INCORRECT_USERNAME\n");
 
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -1708,7 +1717,7 @@ void mute_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 		
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[3]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[3]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -1725,7 +1734,7 @@ void mute_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 			
 				if ( !clear_cmd_args(cmd_args, args_num) )
 				{
-					fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[4]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+					fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[4]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 					cmd_args = NULL;
 				}
 				return;
@@ -1744,7 +1753,7 @@ void mute_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 		session_send_string(sess, "*COMMAND_INVALID_PARAMS|MUTE|USER_OFFLINE\n");
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[5]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[5]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -1755,7 +1764,7 @@ void mute_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 		session_send_string(sess, "*CANNOT_CONNECT_DATABASE\n");
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[6]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[6]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -1773,7 +1782,7 @@ void mute_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 		session_send_string(sess, "*MUTE_COMMAND_USER_ALREADY_MUTED\n");
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[7]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[7]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -1791,7 +1800,7 @@ void mute_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 		
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[8]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[8]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -1803,7 +1812,7 @@ void mute_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 		
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[9]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[9]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -1829,7 +1838,7 @@ void mute_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 		session_send_string(sess, "*COMMAND_INVALID_PARAMS|MUTE|USER_OFFLINE\n");
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[10]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[10]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -1837,7 +1846,7 @@ void mute_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 	
 	if ( !clear_cmd_args(cmd_args, args_num) )
 	{
-		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[11]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"mute_command_handler\"[11]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 		cmd_args = NULL;
 	}
 	
@@ -1848,7 +1857,7 @@ void mute_command_handler(ClientSession *sess, char **cmd_args, unsigned int arg
 void unmute_command_handler(ClientSession *sess, char **cmd_args, unsigned int args_num)
 {
 	FILE* dbxusers;
-
+	char cur_time[CUR_TIME_SIZE];
 
 	if ( args_num != 2 )
 	{
@@ -1856,7 +1865,7 @@ void unmute_command_handler(ClientSession *sess, char **cmd_args, unsigned int a
 		
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"unmute_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"unmute_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -1870,11 +1879,11 @@ void unmute_command_handler(ClientSession *sess, char **cmd_args, unsigned int a
 	
 	if ( !clear_cmd_args(cmd_args, args_num) )
 	{
-		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"unmute_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"unmute_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 		cmd_args = NULL;
 	}
 
-	if ( !isCorrectLogin(username_buf) )
+	if ( !isValidAuthString(username_buf, 0) )
 	{
 		session_send_string(sess, "*COMMAND_INVALID_PARAMS|UNMUTE|INCORRECT_USERNAME\n");
 		return;
@@ -1935,6 +1944,8 @@ void unmute_command_handler(ClientSession *sess, char **cmd_args, unsigned int a
 void kick_command_handler(ClientSession* sess, char** cmd_args, unsigned int args_num)
 {
 	ListString users_list = clients_online;
+	char cur_time[CUR_TIME_SIZE];	
+
 
 	if ( args_num != 2 )
 	{
@@ -1942,7 +1953,7 @@ void kick_command_handler(ClientSession* sess, char** cmd_args, unsigned int arg
 		
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"kick_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"kick_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -1956,11 +1967,11 @@ void kick_command_handler(ClientSession* sess, char** cmd_args, unsigned int arg
 	
 	if ( !clear_cmd_args(cmd_args, args_num) )
 	{
-		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"kick_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"kick_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 		cmd_args = NULL;
 	}
 	
-	if ( !isCorrectLogin(username_buf) )
+	if ( !isValidAuthString(username_buf, 0) )
 	{
 		session_send_string(sess, "*COMMAND_INVALID_PARAMS|KICK|INCORRECT_USERNAME\n");
 		return;
@@ -2016,7 +2027,7 @@ void table_command_handler(ClientSession* sess, char** cmd_args, unsigned int ar
 {	
 	int isUserdata = 0;
 	int isSessionUserInfo = 0;
-
+	char cur_time[CUR_TIME_SIZE];
 
 	if ( args_num != 2 )
 	{
@@ -2024,7 +2035,7 @@ void table_command_handler(ClientSession* sess, char** cmd_args, unsigned int ar
 		
 		if ( !clear_cmd_args(cmd_args, args_num) )
 		{
-			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"table_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+			fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"table_command_handler\"[1]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 			cmd_args = NULL;
 		}
 		return;
@@ -2038,7 +2049,7 @@ void table_command_handler(ClientSession* sess, char** cmd_args, unsigned int ar
 
 	if ( !clear_cmd_args(cmd_args, args_num) )
 	{
-		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"table_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(), cmd_args);
+		fprintf(stderr, "[%s] [WARN]: Unable to clear cmd args(in \"table_command_handler\"[2]). \"cmd_args\" value is %p\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), cmd_args);
 		cmd_args = NULL;
 	}
 
@@ -2066,7 +2077,7 @@ void table_command_handler(ClientSession* sess, char** cmd_args, unsigned int ar
 		char rec_size[10];
 		int records_size = 0;
 		evaluate_size_db(&records_size);
-		itoa(records_size, rec_size);
+		itoa(records_size, rec_size, 10);
 		for ( i = 0; rec_size[i]; cur_pos++, i++ )
 			response_buffer[cur_pos] = rec_size[i];
 		response_buffer[cur_pos] = '|';
@@ -2101,7 +2112,7 @@ void table_command_handler(ClientSession* sess, char** cmd_args, unsigned int ar
 		}
 		fclose(dbusers);
 
-		itoa(non_empty_recs_counter, non_empty_rec);
+		itoa(non_empty_recs_counter, non_empty_rec, 10);
 		for ( i = 0; non_empty_rec[i]; cur_pos++, i++ )
 			response_buffer[cur_pos] = non_empty_rec[i];
 		response_buffer[cur_pos] = '|';
@@ -2130,7 +2141,7 @@ void table_command_handler(ClientSession* sess, char** cmd_args, unsigned int ar
 				if ( db_indexes[i] > -1 )
 				{
 					char bufID[10];
-					itoa(bufUsers->ID, bufID);
+					itoa(bufUsers->ID, bufID, 10);
 					int j;
 					for (j = 0; bufID[j]; cur_pos++, j++)
 						response_buffer[cur_pos] = bufID[j];
@@ -2178,7 +2189,7 @@ void table_command_handler(ClientSession* sess, char** cmd_args, unsigned int ar
 				if ( db_indexes[i] > -1 )
 				{
 					char bufID[10];
-					itoa(bufXUsers->ID, bufID);
+					itoa(bufXUsers->ID, bufID, 10);
 					int j;
 					for (j = 0; bufID[j]; cur_pos++, j++)
 						response_buffer[cur_pos] = bufID[j];
@@ -2247,6 +2258,8 @@ static void drawLine(int line_length, unsigned int c)
 }
 void view_data(const char* str, int str_size, char mode, int line_length )
 {	
+	char cur_time[CUR_TIME_SIZE];
+
 	if ( line_length >= str_size)
 		line_length = str_size-1;
 	
@@ -2256,7 +2269,7 @@ void view_data(const char* str, int str_size, char mode, int line_length )
 	for ( k = 0; k < str_size; k++ )
 	{
 		if ( (k % line_length) == 0 )
-			printf("\n[%s] [INFO]: ", getCurTimeAsString());
+			printf("\n[%s] [INFO]: ", getCurTimeAsString(cur_time, CUR_TIME_SIZE));
 
 		if ( mode == 'c' )
 		{
@@ -2279,7 +2292,7 @@ void text_message_handler(ClientSession *sess, const char *msg, unsigned int isP
 {
 	char str[BUFSIZE];
 	char buf[BUFSIZE];
-
+	char cur_time[CUR_TIME_SIZE];
 
 	int i;
 	for (i = 0; msg[i]; i++)
@@ -2381,13 +2394,13 @@ void text_message_handler(ClientSession *sess, const char *msg, unsigned int isP
 					continue;
 
 				int bytes_sent = write(i, str, mes_size); 
-				printf("[%s] [INFO]: Sent %d bytes to %s\n", getCurTimeAsString(), bytes_sent, serv->sess_array[i]->lastIP);
+				printf("[%s] [INFO]: Sent %d bytes to %s\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), bytes_sent, serv->sess_array[i]->lastIP);
 				view_data(str, bytes_sent, 'c', 50);
 				view_data(str, bytes_sent, 'd', 50);
 				break;
 			}
 			int bytes_sent = write(i, str, mes_size); 
-			printf("[%s] [INFO]: Sent %d bytes to %s\n", getCurTimeAsString(), bytes_sent, serv->sess_array[i]->lastIP);
+			printf("[%s] [INFO]: Sent %d bytes to %s\n", getCurTimeAsString(cur_time, CUR_TIME_SIZE), bytes_sent, serv->sess_array[i]->lastIP);
 			view_data(str, bytes_sent, 'c', 50);
 			view_data(str, bytes_sent, 'd', 50);
 		}

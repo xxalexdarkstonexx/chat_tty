@@ -2,8 +2,6 @@
 
 int main(int argc, char** argv)
 {
-	unsigned int portNumber;
-
 	clearScreen();
 #ifdef _WIN32
 	WSADATA d;
@@ -19,8 +17,8 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	portNumber = atoi(argv[1]);
-	if (portNumber < 1 || (portNumber >= 1 && portNumber < 1024) )
+	int portNumber = atoi(argv[1]);
+	if (portNumber < 1 || (portNumber >= 1 && portNumber <= 1023) )
 	{
 		fprintf(stderr, "Incorrect port number\n");
 		return 2;

@@ -1,10 +1,14 @@
-#include "clientCore.h"
 #include "commonAPI.h"
-#include "dateTime.h"
+#include "clientCore.h"
 
-#define MAX_RESPONSE_ARGS_NUM 100
+enum 
+{
+	MAX_RESPONSE_ARGS_NUM = 100,
+	CURRENT_TIME_SIZE = 100
+};
 
 extern const char* server_codes_list[SERVER_CODES_COUNT];
+int peer_sock;
 
 int main(int argc, char** argv)
 {
@@ -12,7 +16,8 @@ int main(int argc, char** argv)
 	int messagesCounter = 0;
 	int start_signal = 0;
 	time_t startTime;
-	time_t totalTime = AS_TOTAL_TIME_MS;
+	time_t totalTime = ANTISPAM_MODULE_TOTAL_TIME_MS;
+
 
 	clearScreen();
 #ifdef _WIN32
@@ -42,8 +47,9 @@ int main(int argc, char** argv)
 		fprintf(stderr, "Incorrect IP address\n");
 		return 1;
 	}
-	unsigned int portNumber = atoi(argv[2]);
-	if (portNumber < 1 || (portNumber >= 1 && portNumber <= 1024) )
+
+	int portNumber = atoi(argv[2]);
+	if (portNumber < 1 || (portNumber >= 1 && portNumber <= 1023) )
 	{
 		fprintf(stderr, "Incorrect port number\n");
 		return 1;
@@ -52,7 +58,7 @@ int main(int argc, char** argv)
 	
 
 	printf("%s\n", "Creating socket..");
-	int peer_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	peer_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (peer_sock == -1)
 	{
 		fprintf(stderr, "socket() failed. {%d}\n", GETSOCKETERRNO());
@@ -101,8 +107,14 @@ int main(int argc, char** argv)
 			char read_buf[BUFSIZE];
 			int bytes_received = recv(peer_sock, read_buf, BUFSIZE, 0);
 
-			char* time_tokens[5];
-			setTimeTokens(time_tokens);
+			
+			time_t cur_time_in_secs = time(0);
+			struct tm* cur_time = NULL;
+			cur_time = localtime(&cur_time_in_secs);
+			char current_time[CURRENT_TIME_SIZE];
+			strftime( current_time, CURRENT_TIME_SIZE, "%H:%M:%S", cur_time );
+
+
 			if ( bytes_received < 1 )
 			{
 				fprintf(stderr, "Connection closed by server.\n");
@@ -128,14 +140,14 @@ int main(int argc, char** argv)
 				printf("%s\n", response_tokens[i]);
 			*/
 
-			if ( checkServerResponse(response_tokens, response_tokens_size, peer_sock, &authorized) )
+			if ( checkServerResponse(response_tokens, response_tokens_size, &authorized) )
 			{
 				printf("Received %d bytes\n", bytes_received);
 				continue;
 			}
 
 			printf("Received %d bytes\n", bytes_received);
-			printf("<<< [%s] %s (%s) => %s\n", time_tokens[3], response_tokens[0], response_tokens[1], response_tokens[2]);
+			printf("<<< [%s] %s (%s) => %s\n", current_time, response_tokens[0], response_tokens[1], response_tokens[2]);
 		}
 #ifdef _WIN32
 		if ( _kbhit() && authorized )
@@ -146,8 +158,11 @@ int main(int argc, char** argv)
 			char send_buf[BUFSIZE];
 			do
 			{
-				if ( !fgets(send_buf, BUFSIZE, stdin) ) return 0;
-				deleteExtraSpaces(send_buf);
+				unsigned int input_chars_num = 0;
+				int str_size = get_string(send_buf, BUFSIZE-2, &input_chars_num);
+
+				if ( str_size > 2 )
+					deleteExtraSpaces(send_buf, str_size);
 			}
 			while ( (send_buf[0] == '\n') || (send_buf[0] == '\0') );
 			
@@ -173,18 +188,18 @@ int main(int argc, char** argv)
 			printf("Sent %d bytes.\n", sent_bytes);
 			messagesCounter++;
 
-			if ( messagesCounter >= AS_MSG_CNT )
+			if ( messagesCounter >= ANTISPAM_MODULE_MSG_CNT )
 			{
 				messagesCounter = 0;
 				start_signal = 0;
 				totalTime = TIMER_START() - startTime;
 			}
 			
-			if ( totalTime < AS_TOTAL_TIME_MS || interval < AS_MESSAGE_INTERVAL )
+			if ( totalTime < ANTISPAM_MODULE_TOTAL_TIME_MS || interval < ANTISPAM_MODULE_MESSAGES_INTERVAL )
 			{
 				messagesCounter = 0;
 				start_signal = 0;
-				totalTime = AS_TOTAL_TIME_MS;
+				totalTime = ANTISPAM_MODULE_TOTAL_TIME_MS;
 				unsigned int numberTries = 2;
 				char* code;
 				srand(time(0));
@@ -226,7 +241,8 @@ int main(int argc, char** argv)
 	WSACleanup();
 #endif
 	printf("%s\n", "Finished");
-	clear_stdin();
 	fflush(stdout);
+	clear_stdin();
+
 	return 0;
 }
